@@ -1,1 +1,126 @@
- 
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Receiver</title>
+    <script type="text/javascript" src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+    <style>
+        body {
+            background-color: #333;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #debug-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            border: 1px solid #666;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin: 5px 0;
+            font-family: monospace;
+        }
+        .error { color: #ff6b6b; }
+        .warning { color: #ffd93d; }
+        .info { color: #6bff6b; }
+    </style>
+</head>
+<body>
+    <h1>Receiver Debug Mode</h1>
+    <div id="debug-panel"></div>
+
+    <script>
+        // Debug logging utility
+        const Logger = {
+            container: document.getElementById('debug-panel'),
+            
+            log: function(message, type = 'info') {
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+                const timestamp = new Date().toISOString();
+                entry.textContent = `${timestamp} [${type}] ${message}`;
+                this.container.appendChild(entry);
+                this.container.scrollTop = this.container.scrollHeight;
+                console.log(`[${type}]`, message);
+            },
+            
+            error: function(message) {
+                this.log(message, 'error');
+            },
+            
+            warn: function(message) {
+                this.log(message, 'warning');
+            },
+            
+            info: function(message) {
+                this.log(message, 'info');
+            }
+        };
+
+        // Initialize receiver
+        Logger.info('Initializing receiver...');
+        
+        try {
+            const context = cast.framework.CastReceiverContext.getInstance();
+            const playerManager = context.getPlayerManager();
+
+            // Log system events
+            context.addEventListener(cast.framework.system.EventType.READY, () => {
+                Logger.info('System Ready');
+                Logger.info(`Screen size: ${window.innerWidth}x${window.innerHeight}`);
+                Logger.info(`User Agent: ${navigator.userAgent}`);
+            });
+
+            context.addEventListener(cast.framework.system.EventType.SHUTDOWN, () => {
+                Logger.info('System Shutdown requested');
+            });
+
+            // Handle custom messages
+            context.addCustomMessageListener('urn:x-cast:com.example.cast.custom', function(event) {
+                Logger.info('Received message: ' + JSON.stringify(event.data));
+                
+                // Echo back to sender
+                if (event.senderId) {
+                    context.sendCustomMessage('urn:x-cast:com.example.cast.custom', event.senderId, {
+                        type: 'echo',
+                        originalMessage: event.data,
+                        timestamp: Date.now()
+                    });
+                }
+            });
+
+            // Log player events
+            playerManager.addEventListener(cast.framework.events.EventType.ALL, (event) => {
+                Logger.info(`Player event: ${event.type}`);
+            });
+
+            // Handle errors
+            playerManager.addEventListener(cast.framework.events.EventType.ERROR, (event) => {
+                Logger.error(`Player error: ${JSON.stringify(event)}`);
+            });
+
+            // Monitor visibility changes
+            document.addEventListener('visibilitychange', () => {
+                Logger.info(`Visibility changed: ${document.visibilityState}`);
+            });
+
+            // Start the receiver
+            Logger.info('Starting receiver...');
+            const options = new cast.framework.CastReceiverOptions();
+            options.disableIdleTimeout = true; // Prevent auto-shutdown for debugging
+            
+            context.start(options);
+            Logger.info('Receiver started');
+
+        } catch (error) {
+            Logger.error(`Initialization error: ${error.message}`);
+            Logger.error(`Stack trace: ${error.stack}`);
+        }
+    </script>
+</body>
+</html>
