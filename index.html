@@ -2,7 +2,8 @@
 <html>
 <head>
     <title>Debug Receiver</title>
-    <script type="text/javascript" src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+    <base href="/">
+    <script type="text/javascript" src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
     <style>
         body {
             background-color: #333;
@@ -62,64 +63,106 @@
             }
         };
 
-        // Initialize receiver
-        Logger.info('Initializing receiver...');
-        
-        try {
-            const context = cast.framework.CastReceiverContext.getInstance();
-            const playerManager = context.getPlayerManager();
+        // Check script loading
+        document.querySelector('script[src*="cast_receiver_framework.js"]').onerror = function() {
+            Logger.error('Failed to load Cast SDK script');
+        };
 
-            // Log system events
-            context.addEventListener(cast.framework.system.EventType.READY, () => {
-                Logger.info('System Ready');
-                Logger.info(`Screen size: ${window.innerWidth}x${window.innerHeight}`);
-                Logger.info(`User Agent: ${navigator.userAgent}`);
-            });
+        document.querySelector('script[src*="cast_receiver_framework.js"]').onload = function() {
+            Logger.info('Cast SDK script loaded successfully');
+        };
 
-            context.addEventListener(cast.framework.system.EventType.SHUTDOWN, () => {
-                Logger.info('System Shutdown requested');
-            });
+        // Wait for Cast SDK to load with multiple retries
+        let retryCount = 0;
+        const MAX_RETRIES = 5;
+        const RETRY_DELAY = 1000; // 1 second
 
-            // Handle custom messages
-            context.addCustomMessageListener('urn:x-cast:com.example.cast.custom', function(event) {
-                Logger.info('Received message: ' + JSON.stringify(event.data));
-                
-                // Echo back to sender
-                if (event.senderId) {
-                    context.sendCustomMessage('urn:x-cast:com.example.cast.custom', event.senderId, {
-                        type: 'echo',
-                        originalMessage: event.data,
-                        timestamp: Date.now()
-                    });
-                }
-            });
-
-            // Log player events
-            playerManager.addEventListener(cast.framework.events.EventType.ALL, (event) => {
-                Logger.info(`Player event: ${event.type}`);
-            });
-
-            // Handle errors
-            playerManager.addEventListener(cast.framework.events.EventType.ERROR, (event) => {
-                Logger.error(`Player error: ${JSON.stringify(event)}`);
-            });
-
-            // Monitor visibility changes
-            document.addEventListener('visibilitychange', () => {
-                Logger.info(`Visibility changed: ${document.visibilityState}`);
-            });
-
-            // Start the receiver
-            Logger.info('Starting receiver...');
-            const options = new cast.framework.CastReceiverOptions();
-            options.disableIdleTimeout = true; // Prevent auto-shutdown for debugging
+        function checkCastSDK() {
+            Logger.info('Checking Cast SDK availability...');
             
-            context.start(options);
-            Logger.info('Receiver started');
+            if (typeof cast !== 'undefined' && cast.framework) {
+                Logger.info('Cast SDK is available');
+                initializeReceiver();
+            } else {
+                retryCount++;
+                if (retryCount <= MAX_RETRIES) {
+                    Logger.warn(`Cast SDK not available. Retry ${retryCount}/${MAX_RETRIES} in ${RETRY_DELAY}ms`);
+                    setTimeout(checkCastSDK, RETRY_DELAY);
+                } else {
+                    Logger.error('Failed to load Cast SDK after maximum retries');
+                }
+            }
+        }
 
-        } catch (error) {
-            Logger.error(`Initialization error: ${error.message}`);
-            Logger.error(`Stack trace: ${error.stack}`);
+        window.onload = function() {
+            Logger.info('Window loaded');
+            Logger.info(`Protocol: ${window.location.protocol}`);
+            Logger.info(`Host: ${window.location.host}`);
+            Logger.info(`Path: ${window.location.pathname}`);
+            
+            // Start checking for Cast SDK
+            checkCastSDK();
+        };
+
+        function initializeReceiver() {
+            Logger.info('Initializing receiver...');
+            
+            try {
+                const context = cast.framework.CastReceiverContext.getInstance();
+                const playerManager = context.getPlayerManager();
+
+                // Log system events
+                context.addEventListener(cast.framework.system.EventType.READY, () => {
+                    Logger.info('System Ready');
+                    Logger.info(`Screen size: ${window.innerWidth}x${window.innerHeight}`);
+                    Logger.info(`User Agent: ${navigator.userAgent}`);
+                });
+
+                context.addEventListener(cast.framework.system.EventType.SHUTDOWN, () => {
+                    Logger.info('System Shutdown requested');
+                });
+
+                // Handle custom messages
+                context.addCustomMessageListener('urn:x-cast:com.example.cast.custom', function(event) {
+                    Logger.info('Received message: ' + JSON.stringify(event.data));
+                    
+                    // Echo back to sender
+                    if (event.senderId) {
+                        context.sendCustomMessage('urn:x-cast:com.example.cast.custom', event.senderId, {
+                            type: 'echo',
+                            originalMessage: event.data,
+                            timestamp: Date.now()
+                        });
+                    }
+                });
+
+                // Log player events
+                playerManager.addEventListener(cast.framework.events.EventType.ALL, (event) => {
+                    Logger.info(`Player event: ${event.type}`);
+                });
+
+                // Handle errors
+                playerManager.addEventListener(cast.framework.events.EventType.ERROR, (event) => {
+                    Logger.error(`Player error: ${JSON.stringify(event)}`);
+                });
+
+                // Monitor visibility changes
+                document.addEventListener('visibilitychange', () => {
+                    Logger.info(`Visibility changed: ${document.visibilityState}`);
+                });
+
+                // Start with more detailed options
+                Logger.info('Starting receiver with options...');
+                const options = new cast.framework.CastReceiverOptions();
+                options.disableIdleTimeout = true; // Prevent auto-shutdown for debugging
+                
+                context.start(options);
+                Logger.info('Receiver started');
+
+            } catch (error) {
+                Logger.error(`Initialization error: ${error.message}`);
+                Logger.error(`Stack trace: ${error.stack}`);
+            }
         }
     </script>
 </body>
