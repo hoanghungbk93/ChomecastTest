@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Custom Chromecast Receiver</title>
+    <script type="text/javascript" src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+</head>
+<body>
+    <h1>Welcome to Hotel Chromecast</h1>
+    <p>This is your custom receiver for room casting.</p>
+
+    <script>
+        const context = cast.framework.CastReceiverContext.getInstance();
+        const playerManager = context.getPlayerManager();
+
+        // Khi nhận yêu cầu phát media
+        playerManager.setMessageInterceptor(
+            cast.framework.messages.MessageType.LOAD,
+            request => {
+                console.log("Received media request:", request.media.contentId);
+                return request;
+            }
+        );
+
+        context.start();
+    </script>
+</body>
+</html>
