@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chromecast Web Sender</title>
+    <script type="text/javascript" src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js"></script>
+</head>
+<body>
+    <h1>Chromecast Web Sender</h1>
+    <button id="castButton">Start Casting</button>
+    
+    <script>
+        const APP_ID = "A2614071"; // Thay bằng App ID từ Google Cast Console
+        let session = null;
+
+        // Kiểm tra nếu trình duyệt hỗ trợ Google Cast
+        window['__onGCastApiAvailable'] = function(isAvailable) {
+            if (isAvailable) {
+                initializeCastApi();
+            }
+        };
+
+        function initializeCastApi() {
+            const context = cast.framework.CastContext.getInstance();
+            context.setOptions({
+                receiverApplicationId: APP_ID,
+                autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+            });
+
+            document.getElementById("castButton").addEventListener("click", function() {
+                context.requestSession().then((session) => {
+                    console.log("Connected to Chromecast:", session);
+                }).catch((err) => {
+                    console.error("Error connecting to Chromecast:", err);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
