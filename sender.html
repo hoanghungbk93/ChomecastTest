@@ -1,52 +1,217 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Chromecast Web Sender</title>
-    <script type="text/javascript" src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+    <title>Cast Sender</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script type="text/javascript" src="//www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #333;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #357abd;
+        }
+
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .connecting {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+    </style>
 </head>
 <body>
-    <h1>Chromecast Web Sender</h1>
-    <button id="castButton">Start Casting</button>
-    
+    <div class="container">
+        <h1>Cast to TV</h1>
+        <div class="input-group">
+            <input type="text" id="codeInput" placeholder="Enter code" maxlength="4" pattern="\d*">
+        </div>
+        <button id="castButton" disabled>Start Casting</button>
+        <div id="status"></div>
+    </div>
+
     <script>
+        let castSession = null;
+        const statusDiv = document.getElementById('status');
+        const castButton = document.getElementById('castButton');
+        const codeInput = document.getElementById('codeInput');
+
+        // Initialize Cast API
         window['__onGCastApiAvailable'] = function(isAvailable) {
             if (isAvailable) {
                 initializeCastApi();
             } else {
-                console.log('Cast API is not available');
+                updateStatus('Google Cast not available', 'error');
             }
         };
 
         function initializeCastApi() {
-            const applicationID = 'A2614071';
             const context = cast.framework.CastContext.getInstance();
             
             context.setOptions({
-                receiverApplicationId: applicationID,
+                receiverApplicationId: 'A2614071',
                 autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
             });
 
-            // Add cast button
-            const castButton = document.getElementById('castButton');
-            castButton.addEventListener('click', () => {
-                context.requestSession().then(
-                    function(session) {
-                        console.log('Cast session started:', session);
-                    },
-                    function(error) {
-                        console.error('Error starting cast session:', error);
-                    }
-                );
-            });
+            // Enable cast button when ready
+            castButton.disabled = false;
+            updateStatus('Ready to cast', 'success');
 
-            // Log when cast state changes
+            // Monitor cast state
             context.addEventListener(
                 cast.framework.CastContextEventType.CAST_STATE_CHANGED,
                 function(event) {
-                    console.log('Cast state changed:', event);
+                    console.log('Cast state:', event.castState);
+                    switch (event.castState) {
+                        case cast.framework.CastState.NO_DEVICES_AVAILABLE:
+                            updateStatus('No cast devices found', 'error');
+                            break;
+                        case cast.framework.CastState.NOT_CONNECTED:
+                            updateStatus('Ready to cast', 'success');
+                            castButton.textContent = 'Start Casting';
+                            break;
+                        case cast.framework.CastState.CONNECTING:
+                            updateStatus('Connecting...', 'connecting');
+                            break;
+                        case cast.framework.CastState.CONNECTED:
+                            updateStatus('Connected!', 'success');
+                            castButton.textContent = 'Disconnect';
+                            break;
+                    }
+                }
+            );
+
+            // Handle button click
+            castButton.addEventListener('click', function() {
+                if (castSession) {
+                    stopCasting();
+                } else {
+                    startCasting();
+                }
+            });
+        }
+
+        function startCasting() {
+            const code = codeInput.value.trim();
+            if (code.length !== 4) {
+                updateStatus('Please enter a 4-digit code', 'error');
+                return;
+            }
+
+            updateStatus('Connecting...', 'connecting');
+            const context = cast.framework.CastContext.getInstance();
+            
+            context.requestSession().then(
+                function(session) {
+                    castSession = session;
+                    console.log('Connected to cast device');
+                    
+                    // Send the code to receiver
+                    session.sendMessage('urn:x-cast:com.example.cast.custom', {
+                        type: 'code',
+                        code: code
+                    });
+                },
+                function(error) {
+                    console.error('Error:', error);
+                    updateStatus('Connection failed', 'error');
                 }
             );
         }
+
+        function stopCasting() {
+            if (castSession) {
+                castSession.endSession(true);
+                castSession = null;
+                updateStatus('Disconnected', 'success');
+                castButton.textContent = 'Start Casting';
+            }
+        }
+
+        function updateStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = type;
+        }
+
+        // Input validation
+        codeInput.addEventListener('input', function(e) {
+            // Allow only numbers
+            this.value = this.value.replace(/[^0-9]/g, '');
+            
+            // Enable/disable button based on input length
+            castButton.disabled = this.value.length !== 4;
+        });
     </script>
 </body>
 </html>
