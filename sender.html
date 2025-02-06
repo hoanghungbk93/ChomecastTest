@@ -181,14 +181,9 @@
         function updateStatus(message, type) {
             statusDiv.textContent = message;
             statusDiv.className = type;
-            statusDiv.classList.add('visible');
-            
-            if (type === 'success' && !message.includes('Connected!')) {
-                setTimeout(() => {
-                    statusDiv.classList.remove('visible');
-                }, 5000);
-            }
         }
+
+        updateStatus('Initializing...', 'connecting');
 
         function initializeCastApi() {
             if (!window.cast || !cast.framework) {
