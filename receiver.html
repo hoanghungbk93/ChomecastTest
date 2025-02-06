@@ -154,16 +154,38 @@
                 // Start with more detailed options
                 Logger.info('Starting receiver with options...');
                 const options = new cast.framework.CastReceiverOptions();
-                options.disableIdleTimeout = true; // Prevent auto-shutdown for debugging
                 
+                // Vô hiệu hóa Ambient Mode
+                options.disableIdleScreenWhenReady = true;  // Tắt màn hình idle
+                options.skipPlayersLoad = true;             // Bỏ qua load player mặc định
+                options.disableIdleTimeout = true;          // Tắt timeout
+                
+                // Thêm style để ngăn background đen
+                options.customStyle = {
+                    showIdleScreen: false,                  // Không hiện idle screen
+                    backgroundImageUrl: '',                 // Không dùng background image
+                    statusTextColor: 'white',               // Màu text
+                    backgroundColor: '#333333'              // Background color cố định
+                };
+
+                // Cấu hình thêm
+                options.maxInactivity = 86400;             // 24 giờ (tính bằng giây)
+
+                // Start receiver với options đã cấu hình
                 context.start(options);
-                Logger.info('Receiver started');
+                Logger.info('Receiver started with Ambient Mode disabled');
+
+                // Thêm listener để đảm bảo Ambient Mode không được kích hoạt
+                context.addEventListener(cast.framework.system.EventType.READY, () => {
+                    Logger.info('System Ready - Ambient Mode disabled');
+                    // Force disable idle screen
+                    if (context.getSystemState) {
+                        const systemState = context.getSystemState();
+                        if (systemState && systemState.hideIdleScreen) {
+                            systemState.hideIdleScreen();
+                        }
+                    }
+                });
 
             } catch (error) {
-                Logger.error(`Initialization error: ${error.message}`);
-                Logger.error(`Stack trace: ${error.stack}`);
-            }
-        }
-    </script>
-</body>
-</html>
+                Logger.error(`

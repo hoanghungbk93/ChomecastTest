@@ -4,15 +4,18 @@
     <title>TV Connect</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script type="text/javascript">
-        window.__onGCastApiAvailable = function(isAvailable) {
+        window.__onGCastApiAvailable = function(isAvailable, error) {
             if (isAvailable) {
+                console.log('Cast API is available');
                 initializeCastApi();
             } else {
-                updateStatus('Cast API not available', 'error');
+                console.error('Cast API Error:', error);
+                checkCastRequirements();
             }
         };
     </script>
-    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+    <script type="text/javascript" 
+        src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -181,69 +184,86 @@
         // updateStatus('Initializing...', 'connecting');
 
         function initializeCastApi() {
-            updateStatus('initializeCastApi...', 'connecting');
-            if (!window.cast || !cast.framework) {
-                updateStatus('Google Cast API chưa sẵn sàng', 'connecting');
-                return;
-            }
+            try {
+                // Đợi cho đến khi cast.framework được khởi tạo đầy đủ
+                if (!cast || !cast.framework) {
+                    setTimeout(initializeCastApi, 1000);
+                    return;
+                }
 
-            cast.framework.CastContext.getInstance().setOptions({
-                receiverApplicationId: 'A2614071'
-            });
+                // Khởi tạo Cast API với options đơn giản hơn
+                const context = cast.framework.CastContext.getInstance();
+                context.setOptions({
+                    receiverApplicationId: 'A2614071',
+                    // Bỏ AutoJoinPolicy
+                });
 
-            castButton.disabled = false;
-            updateStatus('Sẵn sàng kết nối', 'success');
+                // Enable cast button
+                castButton.disabled = false;
+                updateStatus('Ready to connect', 'success');
+                troubleshootDiv.style.display = 'none';
 
-            cast.framework.CastContext.getInstance().addEventListener(
-                cast.framework.CastContextEventType.CAST_STATE_CHANGED,
-                function(event) {
-                    switch (event.castState) {
-                        case cast.framework.CastState.NO_DEVICES_AVAILABLE:
-                            updateStatus('Không tìm thấy TV gần đây', 'error');
-                            break;
-                        case cast.framework.CastState.NOT_CONNECTED:
-                            updateStatus('Sẵn sàng kết nối', 'success');
-                            castButton.textContent = 'Connect';
-                            break;
-                        case cast.framework.CastState.CONNECTING:
-                            updateStatus('Đang kết nối...', 'connecting');
-                            break;
-                        case cast.framework.CastState.CONNECTED:
-                            updateStatus('Đã kết nối! Mở YouTube hoặc Netflix để bắt đầu', 'success');
-                            castButton.textContent = 'Disconnect';
-                            break;
+                // Monitor cast state
+                context.addEventListener(
+                    cast.framework.CastContextEventType.CAST_STATE_CHANGED,
+                    function(event) {
+                        console.log('Cast state:', event.castState);
+                        switch (event.castState) {
+                            case cast.framework.CastState.NO_DEVICES_AVAILABLE:
+                                chromecastStatus.innerHTML = '✗ No Chromecast found';
+                                troubleshootDiv.style.display = 'block';
+                                updateStatus('No TV found nearby', 'error');
+                                break;
+                            case cast.framework.CastState.NOT_CONNECTED:
+                                chromecastStatus.innerHTML = '✓ Chromecast found';
+                                updateStatus('Ready to connect', 'success');
+                                castButton.textContent = 'Connect';
+                                break;
+                            case cast.framework.CastState.CONNECTING:
+                                updateStatus('Connecting...', 'connecting');
+                                break;
+                            case cast.framework.CastState.CONNECTED:
+                                troubleshootDiv.style.display = 'none';
+                                updateStatus('Connected! You can now open YouTube or Netflix', 'success');
+                                castButton.textContent = 'Disconnect';
+                                break;
+                        }
                     }
-                }
-            );
+                );
 
-            castButton.addEventListener('click', function() {
-                if (castSession) {
-                    stopCasting();
-                } else {
-                    startCasting();
-                }
-            });
+                // Add click handler for cast button
+                castButton.addEventListener('click', function() {
+                    if (castSession) {
+                        stopCasting();
+                    } else {
+                        startCasting();
+                    }
+                });
 
+            } catch (error) {
+                console.error('Cast API Error:', error);
+                checkCastRequirements();
+            }
         }
 
         function startCasting() {
-            updateStatus('startCasting', 'connecting');
             const code = codeInput.value.trim();
             if (code.length !== 4) {
-                updateStatus('Vui lòng nhập mã 4 chữ số', 'error');
+                updateStatus('Please enter a 4-digit code', 'error');
                 return;
             }
 
-            updateStatus('Đang kết nối...', 'connecting');
+            updateStatus('Connecting...', 'connecting');
             
-            cast.framework.CastContext.getInstance().requestSession().then(
+            const context = cast.framework.CastContext.getInstance();
+            context.requestSession().then(
                 function(session) {
                     castSession = session;
                     sendCode(session, code);
                 }
             ).catch(function(error) {
                 console.error('Error:', error);
-                updateStatus('Không tìm thấy TV hoặc lỗi kết nối', 'error');
+                updateStatus('Connection failed', 'error');
             });
         }
 
