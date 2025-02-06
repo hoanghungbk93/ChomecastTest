@@ -16,38 +16,30 @@ def main():
             print("No Chromecast devices found")
             return
             
-        for cast in chromecasts:
-            try:
-                cast.wait(timeout=10)  # Wait with timeout to avoid hanging
-                print(f"Chromecast Found: {cast.cast_info.friendly_name} - {cast.cast_info.uuid} - {cast.cast_info.host}")
-                
-                # Get app configuration
-                app_id = "A2614071"
-                app_config = get_app_config(app_id)
-                if not app_config:
-                    print(f"Warning: No configuration found for app ID {app_id}")
-                
-                # Launch the app with ID A2614071
-                print(f"Launching app on {cast.cast_info.friendly_name}...")
-                print(f"Current app ID: {cast.app_id}")
-                print(f"Connection status: {cast.socket_client.is_connected}")
-                
-                cast.start_app(app_id)
-                time.sleep(2)  # Give it a moment to launch
-                
-                if cast.app_id == app_id:
-                    print("App launched successfully!")
-                else:
-                    print(f"App launch failed. Current app ID: {cast.app_id}")
-                
-            except pychromecast.error.ChromecastConnectionError:
-                print(f"Could not connect to device {cast.cast_info.host}")
-            except pychromecast.error.RequestTimeout:
-                print(f"Timeout while connecting to device {cast.cast_info.host}")
-            except Exception as e:
-                print(f"Error launching app: {str(e)}")
-                print(f"Error type: {type(e)}")
-                
+        cast = chromecasts[0]
+        cast.wait()
+        print(f"Chromecast Found: {cast.cast_info.friendly_name} - {cast.cast_info.uuid} - {cast.cast_info.host}")
+        
+        # Force stop current app
+        print("Checking current app...")
+        if cast.app_id:
+            print(f"Stopping current app: {cast.app_id}")
+            cast.quit_app()
+            time.sleep(2)  # Wait for app to stop
+        
+        # Launch our app
+        print("Launching app on {}...".format(cast.cast_info.friendly_name))
+        cast.start_app("A2614071")
+        time.sleep(2)  # Wait for app to start
+        
+        print(f"Current app ID: {cast.app_id}")
+        print(f"Status: {'Connected' if cast.socket_client.connecting else 'Disconnected'}")
+        
+        if cast.app_id == "A2614071":
+            print("App launched successfully!")
+        else:
+            print(f"Failed to launch app. Current app ID: {cast.app_id}")
+            
     finally:
         # Clean up
         browser.stop_discovery()

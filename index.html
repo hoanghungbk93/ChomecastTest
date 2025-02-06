@@ -102,6 +102,8 @@
             options.disableIdleScreenWhenReady = true;
             options.skipPlayersLoad = true;
             options.disableIdleTimeout = true;
+            options.inactivityTimeout = 0; // 🔥 Tắt Ambient Mode khi không có hoạt động
+            options.maxInactivity = 86400; // 🔥 Ngăn Chromecast về trạng thái mặc định quá sớm
             
             options.customStyle = {
                 showIdleScreen: false,
