@@ -104,8 +104,6 @@
             font-size: 16px;
             font-weight: 500;
             opacity: 1;
-            transform: translateY(-10px);
-            transition: all 0.3s;
         }
 
         .success {
@@ -268,29 +266,39 @@
         }
 
         function sendCode(session, code) {
-            session.sendMessage('urn:x-cast:com.example.cast.custom', {
-                type: 'code',
-                code: code
-            }).catch(function(error) {
-                console.error('Error:', error);
-                updateStatus('Không gửi được mã PIN', 'error');
-            });
+            try {
+                console.log('Sending code:', code); // Debug log
+                session.sendMessage('urn:x-cast:com.example.cast.custom', {
+                    type: 'code',
+                    code: code
+                }).then(
+                    function() {
+                        console.log('Code sent successfully'); // Debug log
+                        updateStatus('Connected! You can now open YouTube or Netflix', 'success');
+                        castButton.textContent = 'Disconnect';
+                    }
+                ).catch(function(error) {
+                    console.error('Error sending code:', error); // Debug log
+                    updateStatus('Failed to send code: ' + error.message, 'error');
+                });
+            } catch (error) {
+                console.error('Error in sendCode:', error); // Debug log
+                updateStatus('Error sending message: ' + error.message, 'error');
+            }
         }
 
         function stopCasting() {
-            updateStatus('stopCasting', 'connecting');
-            if (!castSession) {
-                updateStatus('Chưa có kết nối để ngắt', 'error');
-                return;
+            if (castSession) {
+                updateStatus('Disconnecting...', 'connecting');
+                castSession.endSession(true).then(function() {
+                    castSession = null;
+                    updateStatus('Disconnected', 'success');
+                    castButton.textContent = 'Connect';
+                }).catch(function(error) {
+                    console.error('Error stopping cast:', error); // Debug log
+                    updateStatus('Error disconnecting: ' + error.message, 'error');
+                });
             }
-            castSession.endSession(true).then(() => {
-                castSession = null;
-                updateStatus('Đã ngắt kết nối', 'success');
-                castButton.textContent = 'Connect';
-            }).catch(error => {
-                console.error('Error:', error);
-                updateStatus('Lỗi khi ngắt kết nối', 'error');
-            });
         }
 
         codeInput.addEventListener('input', function(e) {
