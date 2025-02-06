@@ -4,24 +4,36 @@
     <title>TV Connect</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script type="text/javascript">
+        // Khởi tạo debug ngay khi trang load
+        window.onload = function() {
+            Debug.log('Page loaded');
+            Debug.log('User Agent: ' + navigator.userAgent);
+            
+            // Kiểm tra xem script cast_sender.js đã load chưa
+            const castScript = document.querySelector('script[src*="cast_sender.js"]');
+            if (castScript) {
+                Debug.log('Cast script tag found');
+            } else {
+                Debug.log('Cast script tag not found');
+            }
+
+            // Kiểm tra cast object
+            if (window.chrome && window.chrome.cast) {
+                Debug.log('Chrome cast object exists');
+            } else {
+                Debug.log('Chrome cast object not found');
+            }
+        };
+
         window.__onGCastApiAvailable = function(isAvailable, error) {
-            Debug.log(`Cast API available: ${isAvailable}`);
-            if (error) Debug.log(`Cast API error: ${error}`);
+            Debug.log('Cast API callback triggered');
+            Debug.log('isAvailable: ' + isAvailable);
+            if (error) Debug.log('Error: ' + error);
             
             if (isAvailable) {
-                if (checkEnvironment()) {
-                    Debug.log('Environment check passed, initializing Cast API...');
-                    initializeCastApi();
-                }
+                initializeCastApi();
             } else {
-                Debug.log('Cast API not available');
-                if (navigator.userAgent.match(/Android/i)) {
-                    updateStatus('Please install Google Home app', 'error');
-                } else if (navigator.userAgent.match(/iPhone|iPad|iPod/i)) {
-                    updateStatus('Casting not supported on iOS. Please use Android or desktop', 'error');
-                } else {
-                    updateStatus('Cast API not available. Please use Chrome browser', 'error');
-                }
+                checkDeviceSupport();
             }
         };
     </script>
@@ -174,11 +186,12 @@
         const castButton = document.getElementById('castButton');
         const codeInput = document.getElementById('codeInput');
 
-        // Debug utility
+        // Debug utility khởi tạo ngay lập tức
         const Debug = {
             panel: document.getElementById('debug-panel'),
             
             log: function(message) {
+                console.log(message); // Vẫn giữ console.log để debug trên desktop
                 const entry = document.createElement('div');
                 entry.className = 'debug-entry';
                 entry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
@@ -193,29 +206,26 @@
             statusDiv.className = type;
         }
 
-        // Kiểm tra môi trường
-        function checkEnvironment() {
-            Debug.log('Checking environment...');
+        // Thêm hàm kiểm tra thiết bị
+        function checkDeviceSupport() {
+            Debug.log('Checking device support...');
             
-            // Kiểm tra trình duyệt
-            const userAgent = navigator.userAgent;
-            Debug.log(`User Agent: ${userAgent}`);
-            
-            // Kiểm tra nếu là Chrome trên iOS
-            if (userAgent.match(/CriOS/i)) {
-                Debug.log('Chrome on iOS detected');
-                updateStatus('Please use Chrome on Android or desktop', 'error');
-                return false;
+            if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                Debug.log('iOS device detected');
+                updateStatus('Casting not supported on iOS', 'error');
+            } else if (/Android/i.test(navigator.userAgent)) {
+                Debug.log('Android device detected');
+                if (/Chrome/i.test(navigator.userAgent)) {
+                    Debug.log('Chrome browser on Android');
+                    updateStatus('Please ensure Google Home app is installed', 'error');
+                } else {
+                    Debug.log('Non-Chrome browser on Android');
+                    updateStatus('Please use Chrome browser', 'error');
+                }
+            } else {
+                Debug.log('Other device detected');
+                updateStatus('Please use Chrome browser on Android or desktop', 'error');
             }
-            
-            // Kiểm tra nếu là Safari
-            if (userAgent.match(/Safari/i) && !userAgent.match(/Chrome/i)) {
-                Debug.log('Safari detected');
-                updateStatus('Please use Chrome browser', 'error');
-                return false;
-            }
-
-            return true;
         }
 
         function initializeCastApi() {
