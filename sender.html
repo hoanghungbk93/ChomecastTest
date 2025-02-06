@@ -4,11 +4,24 @@
     <title>TV Connect</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script type="text/javascript">
-        window.__onGCastApiAvailable = function(isAvailable) {
+        window.__onGCastApiAvailable = function(isAvailable, error) {
+            Debug.log(`Cast API available: ${isAvailable}`);
+            if (error) Debug.log(`Cast API error: ${error}`);
+            
             if (isAvailable) {
-                initializeCastApi();
+                if (checkEnvironment()) {
+                    Debug.log('Environment check passed, initializing Cast API...');
+                    initializeCastApi();
+                }
             } else {
-                updateStatus('Cast API not available', 'error');
+                Debug.log('Cast API not available');
+                if (navigator.userAgent.match(/Android/i)) {
+                    updateStatus('Please install Google Home app', 'error');
+                } else if (navigator.userAgent.match(/iPhone|iPad|iPod/i)) {
+                    updateStatus('Casting not supported on iOS. Please use Android or desktop', 'error');
+                } else {
+                    updateStatus('Cast API not available. Please use Chrome browser', 'error');
+                }
             }
         };
     </script>
@@ -180,17 +193,51 @@
             statusDiv.className = type;
         }
 
+        // Kiểm tra môi trường
+        function checkEnvironment() {
+            Debug.log('Checking environment...');
+            
+            // Kiểm tra trình duyệt
+            const userAgent = navigator.userAgent;
+            Debug.log(`User Agent: ${userAgent}`);
+            
+            // Kiểm tra nếu là Chrome trên iOS
+            if (userAgent.match(/CriOS/i)) {
+                Debug.log('Chrome on iOS detected');
+                updateStatus('Please use Chrome on Android or desktop', 'error');
+                return false;
+            }
+            
+            // Kiểm tra nếu là Safari
+            if (userAgent.match(/Safari/i) && !userAgent.match(/Chrome/i)) {
+                Debug.log('Safari detected');
+                updateStatus('Please use Chrome browser', 'error');
+                return false;
+            }
+
+            return true;
+        }
+
         function initializeCastApi() {
             try {
                 Debug.log('Initializing Cast API...');
                 const context = cast.framework.CastContext.getInstance();
+                
+                // Kiểm tra xem cast object có tồn tại không
+                if (!context) {
+                    Debug.log('Cast context not available');
+                    updateStatus('Cast not available', 'error');
+                    return;
+                }
+
                 context.setOptions({
                     receiverApplicationId: 'A2614071'
                 });
 
+                Debug.log('Cast API initialized successfully');
                 castButton.disabled = false;
-                Debug.log('Cast API initialized');
 
+                // Monitor cast state
                 context.addEventListener(
                     cast.framework.CastContextEventType.CAST_STATE_CHANGED,
                     function(event) {
@@ -216,18 +263,9 @@
                     }
                 );
 
-                // Add click handler for cast button
-                castButton.addEventListener('click', function() {
-                    if (castSession) {
-                        stopCasting();
-                    } else {
-                        startCasting();
-                    }
-                });
-
             } catch (error) {
-                Debug.log(`Error: ${error.message}`);
-                updateStatus('Cast API Error', 'error');
+                Debug.log(`Cast API initialization error: ${error.message}`);
+                updateStatus('Cast initialization failed', 'error');
             }
         }
 
