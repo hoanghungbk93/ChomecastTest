@@ -8,7 +8,7 @@
             if (isAvailable) {
                 initializeCastApi();
             } else {
-                updateStatus('Google Cast API không khả dụng', 'error');
+                updateStatus('Cast API not available', 'error');
             }
         };
     </script>
@@ -21,91 +21,141 @@
         }
 
         body {
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f2f5;
             padding: 20px;
-            background-color: #f5f5f5;
         }
 
         .container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
+            width: 100%;
+            max-width: 400px;
             background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            padding: 24px;
         }
 
         h1 {
-            font-size: 24px;
-            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 24px;
             text-align: center;
-            color: #333;
+            color: #1a1a1a;
         }
 
         .input-group {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
         input {
             width: 100%;
-            padding: 15px;
-            font-size: 24px;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            margin-bottom: 10px;
+            padding: 20px;
+            font-size: 32px;
+            font-weight: 500;
+            border: 2px solid #e1e3e6;
+            border-radius: 12px;
             text-align: center;
-            letter-spacing: 5px;
+            letter-spacing: 8px;
+            background-color: #f8f9fa;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #4285f4;
+            box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.2);
         }
 
         button {
             width: 100%;
-            padding: 15px;
+            padding: 16px;
             font-size: 18px;
+            font-weight: 600;
             background-color: #4285f4;
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: 12px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: all 0.3s;
         }
 
         button:disabled {
-            background-color: #ccc;
+            background-color: #e1e3e6;
             cursor: not-allowed;
         }
 
         button:hover:not(:disabled) {
             background-color: #357abd;
+            transform: translateY(-1px);
         }
 
         #status {
             margin-top: 20px;
-            padding: 10px;
-            border-radius: 6px;
+            padding: 16px;
+            border-radius: 12px;
             text-align: center;
             font-size: 16px;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s;
+        }
+
+        #status.visible {
+            opacity: 1;
+            transform: translateY(0);
         }
 
         .success {
-            background-color: #d4edda;
-            color: #155724;
+            background-color: #e8f5e9;
+            color: #1b5e20;
+            border: 1px solid #a5d6a7;
         }
 
         .error {
-            background-color: #f8d7da;
-            color: #721c24;
+            background-color: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
         }
 
         .connecting {
-            background-color: #fff3cd;
-            color: #856404;
+            background-color: #fff3e0;
+            color: #e65100;
+            border: 1px solid #ffe0b2;
         }
 
         .instructions {
-            margin-top: 20px;
+            margin-top: 24px;
             text-align: center;
             color: #666;
             font-size: 14px;
+            line-height: 1.5;
+            padding: 16px;
+            background-color: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            input {
+                font-size: 28px;
+                padding: 16px;
+            }
+
+            button {
+                padding: 14px;
+            }
         }
     </style>
 </head>
@@ -131,6 +181,13 @@
         function updateStatus(message, type) {
             statusDiv.textContent = message;
             statusDiv.className = type;
+            statusDiv.classList.add('visible');
+            
+            if (type === 'success' && !message.includes('Connected!')) {
+                setTimeout(() => {
+                    statusDiv.classList.remove('visible');
+                }, 5000);
+            }
         }
 
         function initializeCastApi() {
