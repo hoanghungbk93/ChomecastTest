@@ -3,7 +3,18 @@
 <head>
     <title>Cast Sender</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script type="text/javascript" src="//www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+    <script type="text/javascript">
+        window.__onGCastApiAvailable = function(isAvailable) {
+            if (isAvailable) {
+                initializeCastApi();
+            } else {
+                console.error('Cast API not available');
+                updateStatus('Cast API not available. Please install Google Cast extension.', 'error');
+            }
+        };
+    </script>
+    <script type="text/javascript" 
+        src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -99,6 +110,14 @@
         </div>
         <button id="castButton" disabled>Start Casting</button>
         <div id="status"></div>
+        <div id="extensionHelp" style="display: none; margin-top: 20px; text-align: center;">
+            <p>Please install Google Cast extension:</p>
+            <a href="https://chrome.google.com/webstore/detail/google-cast/boadgeojelhgndaghljhdicfkmllpafd" 
+               target="_blank" 
+               style="color: #4285f4; text-decoration: none;">
+                Install Chrome Extension
+            </a>
+        </div>
     </div>
 
     <script>
@@ -106,60 +125,68 @@
         const statusDiv = document.getElementById('status');
         const castButton = document.getElementById('castButton');
         const codeInput = document.getElementById('codeInput');
+        const extensionHelp = document.getElementById('extensionHelp');
 
-        // Initialize Cast API
-        window['__onGCastApiAvailable'] = function(isAvailable) {
-            if (isAvailable) {
-                initializeCastApi();
+        function updateStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = type;
+            
+            if (message.includes('Cast API not available')) {
+                extensionHelp.style.display = 'block';
             } else {
-                updateStatus('Google Cast not available', 'error');
+                extensionHelp.style.display = 'none';
             }
-        };
+        }
 
         function initializeCastApi() {
-            const context = cast.framework.CastContext.getInstance();
-            
-            context.setOptions({
-                receiverApplicationId: 'A2614071',
-                autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
-            });
+            try {
+                const context = cast.framework.CastContext.getInstance();
+                
+                context.setOptions({
+                    receiverApplicationId: 'A2614071',
+                    autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+                });
 
-            // Enable cast button when ready
-            castButton.disabled = false;
-            updateStatus('Ready to cast', 'success');
+                // Enable cast button when ready
+                castButton.disabled = false;
+                updateStatus('Ready to cast', 'success');
 
-            // Monitor cast state
-            context.addEventListener(
-                cast.framework.CastContextEventType.CAST_STATE_CHANGED,
-                function(event) {
-                    console.log('Cast state:', event.castState);
-                    switch (event.castState) {
-                        case cast.framework.CastState.NO_DEVICES_AVAILABLE:
-                            updateStatus('No cast devices found', 'error');
-                            break;
-                        case cast.framework.CastState.NOT_CONNECTED:
-                            updateStatus('Ready to cast', 'success');
-                            castButton.textContent = 'Start Casting';
-                            break;
-                        case cast.framework.CastState.CONNECTING:
-                            updateStatus('Connecting...', 'connecting');
-                            break;
-                        case cast.framework.CastState.CONNECTED:
-                            updateStatus('Connected!', 'success');
-                            castButton.textContent = 'Disconnect';
-                            break;
+                // Monitor cast state
+                context.addEventListener(
+                    cast.framework.CastContextEventType.CAST_STATE_CHANGED,
+                    function(event) {
+                        console.log('Cast state:', event.castState);
+                        switch (event.castState) {
+                            case cast.framework.CastState.NO_DEVICES_AVAILABLE:
+                                updateStatus('No cast devices found', 'error');
+                                break;
+                            case cast.framework.CastState.NOT_CONNECTED:
+                                updateStatus('Ready to cast', 'success');
+                                castButton.textContent = 'Start Casting';
+                                break;
+                            case cast.framework.CastState.CONNECTING:
+                                updateStatus('Connecting...', 'connecting');
+                                break;
+                            case cast.framework.CastState.CONNECTED:
+                                updateStatus('Connected!', 'success');
+                                castButton.textContent = 'Disconnect';
+                                break;
+                        }
                     }
-                }
-            );
+                );
 
-            // Handle button click
-            castButton.addEventListener('click', function() {
-                if (castSession) {
-                    stopCasting();
-                } else {
-                    startCasting();
-                }
-            });
+                // Handle button click
+                castButton.addEventListener('click', function() {
+                    if (castSession) {
+                        stopCasting();
+                    } else {
+                        startCasting();
+                    }
+                });
+            } catch (error) {
+                console.error('Error initializing Cast API:', error);
+                updateStatus('Error initializing Cast. Please try refreshing.', 'error');
+            }
         }
 
         function startCasting() {
@@ -234,11 +261,6 @@
                 updateStatus('Disconnected', 'success');
                 castButton.textContent = 'Start Casting';
             }
-        }
-
-        function updateStatus(message, type) {
-            statusDiv.textContent = message;
-            statusDiv.className = type;
         }
 
         // Input validation
