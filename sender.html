@@ -236,6 +236,7 @@
         }
 
         function startCasting() {
+            updateStatus('startCasting', 'connecting');
             const code = codeInput.value.trim();
             if (code.length !== 4) {
                 updateStatus('Vui lòng nhập mã 4 chữ số', 'error');
@@ -266,6 +267,7 @@
         }
 
         function stopCasting() {
+            updateStatus('stopCasting', 'connecting');
             if (!castSession) {
                 updateStatus('Chưa có kết nối để ngắt', 'error');
                 return;
