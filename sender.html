@@ -8,7 +8,7 @@
             if (isAvailable) {
                 initializeCastApi();
             } else {
-                updateStatus('Cast API not available', 'error');
+                updateStatus('Google Cast API không khả dụng', 'error');
             }
         };
     </script>
@@ -134,58 +134,58 @@
         }
 
         function initializeCastApi() {
-            try {
-                cast.framework.CastContext.getInstance().setOptions({
-                    receiverApplicationId: 'A2614071'
-                });
-
-                castButton.disabled = false;
-                updateStatus('Ready to connect', 'success');
-
-                cast.framework.CastContext.getInstance().addEventListener(
-                    cast.framework.CastContextEventType.CAST_STATE_CHANGED,
-                    function(event) {
-                        switch (event.castState) {
-                            case cast.framework.CastState.NO_DEVICES_AVAILABLE:
-                                updateStatus('No TV found nearby', 'error');
-                                break;
-                            case cast.framework.CastState.NOT_CONNECTED:
-                                updateStatus('Ready to connect', 'success');
-                                castButton.textContent = 'Connect';
-                                break;
-                            case cast.framework.CastState.CONNECTING:
-                                updateStatus('Connecting...', 'connecting');
-                                break;
-                            case cast.framework.CastState.CONNECTED:
-                                updateStatus('Connected! You can now open YouTube or Netflix', 'success');
-                                castButton.textContent = 'Disconnect';
-                                break;
-                        }
-                    }
-                );
-
-                castButton.addEventListener('click', function() {
-                    if (castSession) {
-                        stopCasting();
-                    } else {
-                        startCasting();
-                    }
-                });
-
-            } catch (error) {
-                console.error('Error:', error);
-                updateStatus('Connection error', 'error');
+            if (!window.cast || !cast.framework) {
+                updateStatus('Google Cast API chưa sẵn sàng', 'error');
+                return;
             }
+
+            cast.framework.CastContext.getInstance().setOptions({
+                receiverApplicationId: 'A2614071'
+            });
+
+            castButton.disabled = false;
+            updateStatus('Sẵn sàng kết nối', 'success');
+
+            cast.framework.CastContext.getInstance().addEventListener(
+                cast.framework.CastContextEventType.CAST_STATE_CHANGED,
+                function(event) {
+                    switch (event.castState) {
+                        case cast.framework.CastState.NO_DEVICES_AVAILABLE:
+                            updateStatus('Không tìm thấy TV gần đây', 'error');
+                            break;
+                        case cast.framework.CastState.NOT_CONNECTED:
+                            updateStatus('Sẵn sàng kết nối', 'success');
+                            castButton.textContent = 'Connect';
+                            break;
+                        case cast.framework.CastState.CONNECTING:
+                            updateStatus('Đang kết nối...', 'connecting');
+                            break;
+                        case cast.framework.CastState.CONNECTED:
+                            updateStatus('Đã kết nối! Mở YouTube hoặc Netflix để bắt đầu', 'success');
+                            castButton.textContent = 'Disconnect';
+                            break;
+                    }
+                }
+            );
+
+            castButton.addEventListener('click', function() {
+                if (castSession) {
+                    stopCasting();
+                } else {
+                    startCasting();
+                }
+            });
+
         }
 
         function startCasting() {
             const code = codeInput.value.trim();
             if (code.length !== 4) {
-                updateStatus('Please enter a 4-digit code', 'error');
+                updateStatus('Vui lòng nhập mã 4 chữ số', 'error');
                 return;
             }
 
-            updateStatus('Connecting...', 'connecting');
+            updateStatus('Đang kết nối...', 'connecting');
             
             cast.framework.CastContext.getInstance().requestSession().then(
                 function(session) {
@@ -194,7 +194,7 @@
                 }
             ).catch(function(error) {
                 console.error('Error:', error);
-                updateStatus('Connection failed', 'error');
+                updateStatus('Không tìm thấy TV hoặc lỗi kết nối', 'error');
             });
         }
 
@@ -204,21 +204,23 @@
                 code: code
             }).catch(function(error) {
                 console.error('Error:', error);
-                updateStatus('Failed to send code', 'error');
+                updateStatus('Không gửi được mã PIN', 'error');
             });
         }
 
         function stopCasting() {
-            if (castSession) {
-                castSession.endSession(true).then(function() {
-                    castSession = null;
-                    updateStatus('Disconnected', 'success');
-                    castButton.textContent = 'Connect';
-                }).catch(function(error) {
-                    console.error('Error:', error);
-                    updateStatus('Error disconnecting', 'error');
-                });
+            if (!castSession) {
+                updateStatus('Chưa có kết nối để ngắt', 'error');
+                return;
             }
+            castSession.endSession(true).then(() => {
+                castSession = null;
+                updateStatus('Đã ngắt kết nối', 'success');
+                castButton.textContent = 'Connect';
+            }).catch(error => {
+                console.error('Error:', error);
+                updateStatus('Lỗi khi ngắt kết nối', 'error');
+            });
         }
 
         codeInput.addEventListener('input', function(e) {
