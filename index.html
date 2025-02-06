@@ -10,6 +10,7 @@
             color: #fff;
             font-family: Arial, sans-serif;
             margin: 20px;
+            background-image: none !important;
         }
         #debug-panel {
             position: fixed;
@@ -50,119 +51,83 @@
                 console.log(`[${type}]`, message);
             },
             
-            error: function(message) {
-                this.log(message, 'error');
-            },
-            
-            warn: function(message) {
-                this.log(message, 'warning');
-            },
-            
-            info: function(message) {
-                this.log(message, 'info');
-            }
+            info: function(message) { this.log(message, 'info'); },
+            warn: function(message) { this.log(message, 'warning'); },
+            error: function(message) { this.log(message, 'error'); }
         };
 
-        // Check script loading
-        document.querySelector('script[src*="cast_receiver_framework.js"]').onerror = function() {
-            Logger.error('Failed to load Cast SDK script');
-        };
-
-        document.querySelector('script[src*="cast_receiver_framework.js"]').onload = function() {
-            Logger.info('Cast SDK script loaded successfully');
-        };
-
-        // Wait for Cast SDK to load with multiple retries
-        let retryCount = 0;
-        const MAX_RETRIES = 5;
-        const RETRY_DELAY = 1000; // 1 second
-
-        function checkCastSDK() {
-            Logger.info('Checking Cast SDK availability...');
-            
-            if (typeof cast !== 'undefined' && cast.framework) {
-                Logger.info('Cast SDK is available');
-                initializeReceiver();
-            } else {
-                retryCount++;
-                if (retryCount <= MAX_RETRIES) {
-                    Logger.warn(`Cast SDK not available. Retry ${retryCount}/${MAX_RETRIES} in ${RETRY_DELAY}ms`);
-                    setTimeout(checkCastSDK, RETRY_DELAY);
-                } else {
-                    Logger.error('Failed to load Cast SDK after maximum retries');
-                }
-            }
-        }
-
-        window.onload = function() {
-            Logger.info('Window loaded');
-            Logger.info(`Protocol: ${window.location.protocol}`);
-            Logger.info(`Host: ${window.location.host}`);
-            Logger.info(`Path: ${window.location.pathname}`);
-            
-            // Start checking for Cast SDK
-            checkCastSDK();
-        };
-
-        function initializeReceiver() {
+        try {
             Logger.info('Initializing receiver...');
             
-            try {
-                const context = cast.framework.CastReceiverContext.getInstance();
-                const playerManager = context.getPlayerManager();
+            const context = cast.framework.CastReceiverContext.getInstance();
+            const playerManager = context.getPlayerManager();
 
-                // Log system events
-                context.addEventListener(cast.framework.system.EventType.READY, () => {
-                    Logger.info('System Ready');
-                    Logger.info(`Screen size: ${window.innerWidth}x${window.innerHeight}`);
-                    Logger.info(`User Agent: ${navigator.userAgent}`);
-                });
+            // Log system events
+            context.addEventListener(cast.framework.system.EventType.READY, () => {
+                Logger.info('System Ready');
+            });
 
-                context.addEventListener(cast.framework.system.EventType.SHUTDOWN, () => {
-                    Logger.info('System Shutdown requested');
-                });
-
-                // Handle custom messages
-                context.addCustomMessageListener('urn:x-cast:com.example.cast.custom', function(event) {
-                    Logger.info('Received message: ' + JSON.stringify(event.data));
-                    
-                    // Echo back to sender
-                    if (event.senderId) {
-                        context.sendCustomMessage('urn:x-cast:com.example.cast.custom', event.senderId, {
-                            type: 'echo',
-                            originalMessage: event.data,
-                            timestamp: Date.now()
-                        });
-                    }
-                });
-
-                // Log player events
-                playerManager.addEventListener(cast.framework.events.EventType.ALL, (event) => {
-                    Logger.info(`Player event: ${event.type}`);
-                });
-
-                // Handle errors
-                playerManager.addEventListener(cast.framework.events.EventType.ERROR, (event) => {
-                    Logger.error(`Player error: ${JSON.stringify(event)}`);
-                });
-
-                // Monitor visibility changes
-                document.addEventListener('visibilitychange', () => {
-                    Logger.info(`Visibility changed: ${document.visibilityState}`);
-                });
-
-                // Start with more detailed options
-                Logger.info('Starting receiver with options...');
-                const options = new cast.framework.CastReceiverOptions();
-                options.disableIdleTimeout = true; // Prevent auto-shutdown for debugging
+            // Handle custom messages
+            context.addCustomMessageListener('urn:x-cast:com.example.cast.custom', function(event) {
+                Logger.info('Received message: ' + JSON.stringify(event.data));
                 
-                context.start(options);
-                Logger.info('Receiver started');
+                if (event.senderId) {
+                    context.sendCustomMessage('urn:x-cast:com.example.cast.custom', event.senderId, {
+                        type: 'echo',
+                        originalMessage: event.data,
+                        timestamp: Date.now()
+                    });
+                }
+            });
 
-            } catch (error) {
-                Logger.error(`Initialization error: ${error.message}`);
-                Logger.error(`Stack trace: ${error.stack}`);
-            }
+            // Log player events
+            playerManager.addEventListener(cast.framework.events.EventType.ALL, (event) => {
+                Logger.info(`Player event: ${event.type}`);
+            });
+
+            // Handle errors
+            playerManager.addEventListener(cast.framework.events.EventType.ERROR, (event) => {
+                Logger.error(`Player error: ${JSON.stringify(event)}`);
+            });
+
+            // Monitor visibility changes
+            document.addEventListener('visibilitychange', () => {
+                Logger.info(`Visibility changed: ${document.visibilityState}`);
+            });
+
+            // Start with more detailed options
+            Logger.info('Starting receiver with options...');
+            const options = new cast.framework.CastReceiverOptions();
+            
+            options.disableIdleScreenWhenReady = true;
+            options.skipPlayersLoad = true;
+            options.disableIdleTimeout = true;
+            
+            options.customStyle = {
+                showIdleScreen: false,
+                backgroundImageUrl: '',
+                statusTextColor: 'white',
+                backgroundColor: '#333333'
+            };
+
+            options.maxInactivity = 86400;
+
+            context.start(options);
+            Logger.info('Receiver started with Ambient Mode disabled');
+
+            context.addEventListener(cast.framework.system.EventType.READY, () => {
+                Logger.info('System Ready - Ambient Mode disabled');
+                if (context.getSystemState) {
+                    const systemState = context.getSystemState();
+                    if (systemState && systemState.hideIdleScreen) {
+                        systemState.hideIdleScreen();
+                    }
+                }
+            });
+
+        } catch (error) {
+            Logger.error(`Initialization error: ${error.message}`);
+            Logger.error(`Stack trace: ${error.stack}`);
         }
     </script>
 </body>
