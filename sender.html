@@ -14,7 +14,7 @@
         };
     </script>
     <script type="text/javascript" 
-        src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+        src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -140,11 +140,8 @@
 
         function initializeCastApi() {
             try {
-                const context = cast.framework.CastContext.getInstance();
-                
-                context.setOptions({
+                cast.framework.CastContext.getInstance().setOptions({
                     receiverApplicationId: 'A2614071',
-                    autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
                 });
 
                 // Enable cast button when ready
@@ -152,7 +149,7 @@
                 updateStatus('Ready to cast', 'success');
 
                 // Monitor cast state
-                context.addEventListener(
+                cast.framework.CastContext.getInstance().addEventListener(
                     cast.framework.CastContextEventType.CAST_STATE_CHANGED,
                     function(event) {
                         console.log('Cast state:', event.castState);
@@ -183,6 +180,7 @@
                         startCasting();
                     }
                 });
+
             } catch (error) {
                 console.error('Error initializing Cast API:', error);
                 updateStatus('Error initializing Cast. Please try refreshing.', 'error');
@@ -197,14 +195,12 @@
             }
 
             updateStatus('Connecting...', 'connecting');
-            const context = cast.framework.CastContext.getInstance();
             
-            context.requestSession().then(
+            cast.framework.CastContext.getInstance().requestSession().then(
                 function(session) {
                     castSession = session;
                     console.log('Connected to cast device');
                     
-                    // Wait for session to be ready
                     if (session.getSessionState() === cast.framework.SessionState.SESSION_STARTED) {
                         sendCode(session, code);
                     } else {
@@ -213,23 +209,16 @@
                         });
                         
                         session.addUpdateListener(function(isAlive) {
-                            if (isAlive) {
-                                if (session.getSessionState() === cast.framework.SessionState.SESSION_STARTED) {
-                                    sendCode(session, code);
-                                }
-                            } else {
-                                updateStatus('Session ended', 'error');
-                                castSession = null;
-                                castButton.textContent = 'Start Casting';
+                            if (isAlive && session.getSessionState() === cast.framework.SessionState.SESSION_STARTED) {
+                                sendCode(session, code);
                             }
                         });
                     }
-                },
-                function(error) {
-                    console.error('Error:', error);
-                    updateStatus('Connection failed', 'error');
                 }
-            );
+            ).catch(function(error) {
+                console.error('Error:', error);
+                updateStatus('Connection failed', 'error');
+            });
         }
 
         function sendCode(session, code) {
@@ -242,12 +231,11 @@
                         console.log('Code sent successfully');
                         updateStatus('Connected and code sent', 'success');
                         castButton.textContent = 'Disconnect';
-                    },
-                    function(error) {
-                        console.error('Error sending code:', error);
-                        updateStatus('Failed to send code', 'error');
                     }
-                );
+                ).catch(function(error) {
+                    console.error('Error sending code:', error);
+                    updateStatus('Failed to send code', 'error');
+                });
             } catch (error) {
                 console.error('Error in sendCode:', error);
                 updateStatus('Error sending message', 'error');
@@ -256,19 +244,20 @@
 
         function stopCasting() {
             if (castSession) {
-                castSession.endSession(true);
-                castSession = null;
-                updateStatus('Disconnected', 'success');
-                castButton.textContent = 'Start Casting';
+                castSession.endSession(true).then(function() {
+                    castSession = null;
+                    updateStatus('Disconnected', 'success');
+                    castButton.textContent = 'Start Casting';
+                }).catch(function(error) {
+                    console.error('Error stopping cast:', error);
+                    updateStatus('Error disconnecting', 'error');
+                });
             }
         }
 
         // Input validation
         codeInput.addEventListener('input', function(e) {
-            // Allow only numbers
             this.value = this.value.replace(/[^0-9]/g, '');
-            
-            // Enable/disable button based on input length
             castButton.disabled = this.value.length !== 4;
         });
     </script>
