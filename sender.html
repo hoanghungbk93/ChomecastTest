@@ -177,17 +177,54 @@
                     castSession = session;
                     console.log('Connected to cast device');
                     
-                    // Send the code to receiver
-                    session.sendMessage('urn:x-cast:com.example.cast.custom', {
-                        type: 'code',
-                        code: code
-                    });
+                    // Wait for session to be ready
+                    if (session.getSessionState() === cast.framework.SessionState.SESSION_STARTED) {
+                        sendCode(session, code);
+                    } else {
+                        session.addMessageListener('urn:x-cast:com.example.cast.custom', function(namespace, message) {
+                            console.log('Received message:', message);
+                        });
+                        
+                        session.addUpdateListener(function(isAlive) {
+                            if (isAlive) {
+                                if (session.getSessionState() === cast.framework.SessionState.SESSION_STARTED) {
+                                    sendCode(session, code);
+                                }
+                            } else {
+                                updateStatus('Session ended', 'error');
+                                castSession = null;
+                                castButton.textContent = 'Start Casting';
+                            }
+                        });
+                    }
                 },
                 function(error) {
                     console.error('Error:', error);
                     updateStatus('Connection failed', 'error');
                 }
             );
+        }
+
+        function sendCode(session, code) {
+            try {
+                session.sendMessage('urn:x-cast:com.example.cast.custom', {
+                    type: 'code',
+                    code: code
+                }).then(
+                    function() {
+                        console.log('Code sent successfully');
+                        updateStatus('Connected and code sent', 'success');
+                        castButton.textContent = 'Disconnect';
+                    },
+                    function(error) {
+                        console.error('Error sending code:', error);
+                        updateStatus('Failed to send code', 'error');
+                    }
+                );
+            } catch (error) {
+                console.error('Error in sendCode:', error);
+                updateStatus('Error sending message', 'error');
+            }
         }
 
         function stopCasting() {
