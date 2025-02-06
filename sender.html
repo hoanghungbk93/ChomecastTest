@@ -103,6 +103,26 @@
             background-color: #FF9800;
             color: white;
         }
+
+        #debug-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 30vh;
+            overflow-y: auto;
+            z-index: 9999;
+        }
+
+        .debug-entry {
+            margin: 4px 0;
+            word-break: break-all;
+        }
     </style>
 </head>
 <body>
@@ -114,6 +134,9 @@
         <button id="castButton" disabled>Connect</button>
         <div id="status">Ready to connect</div>
     </div>
+    
+    <!-- Debug Panel -->
+    <div id="debug-panel"></div>
 
     <script>
         let castSession = null;
@@ -121,53 +144,55 @@
         const castButton = document.getElementById('castButton');
         const codeInput = document.getElementById('codeInput');
 
+        // Debug utility
+        const Debug = {
+            panel: document.getElementById('debug-panel'),
+            
+            log: function(message) {
+                const entry = document.createElement('div');
+                entry.className = 'debug-entry';
+                entry.textContent = `${new Date().toLocaleTimeString()} - ${message}`;
+                this.panel.appendChild(entry);
+                this.panel.scrollTop = this.panel.scrollHeight;
+            }
+        };
+
         function updateStatus(message, type) {
+            Debug.log(`Status: ${message} (${type})`);
             statusDiv.textContent = message;
             statusDiv.className = type;
         }
 
         function initializeCastApi() {
             try {
-                // Đợi cho đến khi cast.framework được khởi tạo đầy đủ
-                if (!cast || !cast.framework) {
-                    setTimeout(initializeCastApi, 1000);
-                    return;
-                }
-
-                // Khởi tạo Cast API với options đơn giản hơn
+                Debug.log('Initializing Cast API...');
                 const context = cast.framework.CastContext.getInstance();
                 context.setOptions({
-                    receiverApplicationId: 'A2614071',
-                    // Bỏ AutoJoinPolicy
+                    receiverApplicationId: 'A2614071'
                 });
 
-                // Enable cast button
                 castButton.disabled = false;
-                updateStatus('Ready to connect', 'success');
-                troubleshootDiv.style.display = 'none';
+                Debug.log('Cast API initialized');
 
-                // Monitor cast state
                 context.addEventListener(
                     cast.framework.CastContextEventType.CAST_STATE_CHANGED,
                     function(event) {
-                        console.log('Cast state:', event.castState);
+                        Debug.log(`Cast state changed: ${event.castState}`);
                         switch (event.castState) {
                             case cast.framework.CastState.NO_DEVICES_AVAILABLE:
-                                chromecastStatus.innerHTML = '✗ No Chromecast found';
-                                troubleshootDiv.style.display = 'block';
                                 updateStatus('No TV found nearby', 'error');
+                                castButton.disabled = true;
                                 break;
                             case cast.framework.CastState.NOT_CONNECTED:
-                                chromecastStatus.innerHTML = '✓ Chromecast found';
                                 updateStatus('Ready to connect', 'success');
+                                castButton.disabled = false;
                                 castButton.textContent = 'Connect';
                                 break;
                             case cast.framework.CastState.CONNECTING:
                                 updateStatus('Connecting...', 'connecting');
                                 break;
                             case cast.framework.CastState.CONNECTED:
-                                troubleshootDiv.style.display = 'none';
-                                updateStatus('Connected! You can now open YouTube or Netflix', 'success');
+                                updateStatus('Connected! Open YouTube or Netflix', 'success');
                                 castButton.textContent = 'Disconnect';
                                 break;
                         }
@@ -184,8 +209,8 @@
                 });
 
             } catch (error) {
-                console.error('Cast API Error:', error);
-                checkCastRequirements();
+                Debug.log(`Error: ${error.message}`);
+                updateStatus('Cast API Error', 'error');
             }
         }
 
@@ -196,6 +221,7 @@
                 return;
             }
 
+            Debug.log('Starting cast...');
             updateStatus('Connecting...', 'connecting');
             
             const context = cast.framework.CastContext.getInstance();
