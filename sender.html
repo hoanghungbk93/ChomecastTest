@@ -87,22 +87,48 @@
             background-color: #F44336;
             color: white;
         }
+
+        .connected-state {
+            display: none;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        #disconnectButton {
+            background-color: #f44336;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Connect to TV</h1>
-        <div class="input-group">
-            <input type="text" id="codeInput" placeholder="Enter code" maxlength="4" pattern="\d*" inputmode="numeric">
+        
+        <!-- Connection Form -->
+        <div id="connectionForm">
+            <div class="input-group">
+                <input type="text" id="codeInput" placeholder="Enter code" maxlength="4" pattern="\d*" inputmode="numeric">
+            </div>
+            <button id="submitButton" disabled>Connect</button>
         </div>
-        <button id="submitButton" disabled>Submit</button>
-        <div id="status"></div>
+
+        <!-- Connected State -->
+        <div id="connectedState" class="connected-state">
+            <div id="status"></div>
+            <button id="disconnectButton">Disconnect</button>
+        </div>
     </div>
 
     <script>
+        const API_URL = 'http://192.168.1.7:8000';
+        const deviceId = 'device_' + Math.random().toString(36).substr(2, 9);  // Generate unique device ID
+        
         const codeInput = document.getElementById('codeInput');
         const submitButton = document.getElementById('submitButton');
         const statusDiv = document.getElementById('status');
+        const connectionForm = document.getElementById('connectionForm');
+        const connectedState = document.getElementById('connectedState');
+        const disconnectButton = document.getElementById('disconnectButton');
 
         function showStatus(message, type) {
             statusDiv.textContent = message;
@@ -110,17 +136,92 @@
             statusDiv.style.display = 'block';
         }
 
+        function showConnectedState() {
+            connectionForm.style.display = 'none';
+            connectedState.style.display = 'block';
+        }
+
+        function showConnectionForm() {
+            connectionForm.style.display = 'block';
+            connectedState.style.display = 'none';
+            codeInput.value = '';
+            codeInput.disabled = false;
+            submitButton.disabled = true;
+        }
+
+        async function sendCodeToServer(code) {
+            try {
+                showStatus('Connecting...', 'connecting');
+                
+                const response = await fetch(`${API_URL}/verify_code`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Device-ID': deviceId
+                    },
+                    body: JSON.stringify({ code: code })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus('Connected successfully!', 'success');
+                    showConnectedState();
+                } else {
+                    showStatus(data.message || 'Invalid code', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus('Connection failed. Please try again', 'error');
+            }
+        }
+
+        async function disconnect() {
+            try {
+                const response = await fetch(`${API_URL}/disconnect`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Device-ID': deviceId
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showConnectionForm();
+                    showStatus('Disconnected successfully', 'success');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus('Disconnect failed. Please try again', 'error');
+            }
+        }
+
+        // Event Listeners
         codeInput.addEventListener('input', function(e) {
-            // Chỉ cho phép nhập số
             this.value = this.value.replace(/[^0-9]/g, '');
-            // Enable/disable nút submit
             submitButton.disabled = this.value.length !== 4;
         });
 
-        submitButton.addEventListener('click', function() {
+        submitButton.addEventListener('click', async function() {
             const code = codeInput.value;
-            showStatus('Code submitted: ' + code, 'success');
-            // Có thể thêm API call ở đây nếu cần
+            if (code.length === 4) {
+                await sendCodeToServer(code);
+            }
+        });
+
+        codeInput.addEventListener('keypress', async function(e) {
+            if (e.key === 'Enter' && this.value.length === 4) {
+                await sendCodeToServer(this.value);
+            }
+        });
+
+        disconnectButton.addEventListener('click', disconnect);
+
+        // Handle page unload
+        window.addEventListener('beforeunload', () => {
+            disconnect();
         });
     </script>
 </body>
