@@ -1,60 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Debug Receiver</title>
-    <base href="/">
-    <script type="text/javascript" src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
-    <style>
-        body {
-            background-color: #333;
-            color: #fff;
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-image: none !important;
-        }
-        #debug-panel {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.8);
-            padding: 10px;
-            border: 1px solid #666;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        .log-entry {
-            margin: 5px 0;
-            font-family: monospace;
-        }
-        .error { color: #ff6b6b; }
-        .warning { color: #ffd93d; }
-        .info { color: #6bff6b; }
-    </style>
+    <title>Cast Receiver</title>
+    <script type="text/javascript" src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
 </head>
 <body>
-    <h1>Receiver Debug Mode</h1>
-    <div id="debug-panel"></div>
     <div id="deviceInfo"></div>
 
     <script>
-        // Debug logging utility
         const Logger = {
-            container: document.getElementById('debug-panel'),
-            
-            log: function(message, type = 'info') {
-                const entry = document.createElement('div');
-                entry.className = `log-entry ${type}`;
-                const timestamp = new Date().toISOString();
-                entry.textContent = `${timestamp} [${type}] ${message}`;
-                this.container.appendChild(entry);
-                this.container.scrollTop = this.container.scrollHeight;
-                console.log(`[${type}]`, message);
-            },
-            
-            info: function(message) { this.log(message, 'info'); },
-            warn: function(message) { this.log(message, 'warning'); },
-            error: function(message) { this.log(message, 'error'); }
+            info: (msg) => { console.log('[INFO]', msg); },
+            error: (msg) => { console.error('[ERROR]', msg); }
         };
 
         try {
@@ -71,76 +27,67 @@
                 Model Name: ${deviceInfo.modelName}
             `;
 
-            Logger.info(`Device Info: ${JSON.stringify(deviceInfo)}`);
+            // Lưu trữ các sender được phép cast
+            const authorizedSenders = new Set();
 
-            // Log system events
-            context.addEventListener(cast.framework.system.EventType.READY, () => {
-                Logger.info('System Ready');
-            });
+            // Xử lý yêu cầu cast
+            playerManager.setMessageInterceptor(
+                cast.framework.messages.MessageType.LOAD,
+                request => {
+                    const senderId = request.senderId;
+                    
+                    // Kiểm tra xem sender có được phép cast không
+                    if (!authorizedSenders.has(senderId)) {
+                        Logger.info(`Unauthorized cast attempt from ${senderId}`);
+                        return null; // Từ chối yêu cầu cast
+                    }
+                    
+                    Logger.info(`Authorized cast from ${senderId}`);
+                    return request; // Cho phép cast
+                }
+            );
 
-            // Handle custom messages
-            context.addCustomMessageListener('urn:x-cast:com.example.cast.custom', function(event) {
-                Logger.info('Received message: ' + JSON.stringify(event.data));
+            // Xử lý tin nhắn xác thực
+            context.addCustomMessageListener('urn:x-cast:com.example.cast.auth', event => {
+                const { type, code, senderId } = event.data;
                 
-                if (event.senderId) {
-                    context.sendCustomMessage('urn:x-cast:com.example.cast.custom', event.senderId, {
-                        type: 'echo',
-                        originalMessage: event.data,
-                        timestamp: Date.now()
-                    });
+                if (type === 'auth' && code === '1234') { // Code tạm thời hard-code
+                    Logger.info(`Sender ${senderId} authenticated successfully`);
+                    authorizedSenders.add(senderId);
+                    
+                    // Gửi phản hồi thành công
+                    context.sendCustomMessage('urn:x-cast:com.example.cast.auth', 
+                        event.senderId,
+                        { type: 'auth_success' }
+                    );
+                } else {
+                    Logger.info(`Auth failed for ${senderId}`);
+                    context.sendCustomMessage('urn:x-cast:com.example.cast.auth', 
+                        event.senderId,
+                        { type: 'auth_failed' }
+                    );
                 }
             });
 
-            // Log player events
-            playerManager.addEventListener(cast.framework.events.EventType.ALL, (event) => {
-                Logger.info(`Player event: ${event.type}`);
+            // Xử lý khi sender ngắt kết nối
+            context.addEventListener(cast.framework.system.EventType.SENDER_DISCONNECTED, event => {
+                const senderId = event.senderId;
+                authorizedSenders.delete(senderId);
+                Logger.info(`Sender ${senderId} disconnected and removed from authorized list`);
             });
 
-            // Handle errors
-            playerManager.addEventListener(cast.framework.events.EventType.ERROR, (event) => {
-                Logger.error(`Player error: ${JSON.stringify(event)}`);
-            });
-
-            // Monitor visibility changes
-            document.addEventListener('visibilitychange', () => {
-                Logger.info(`Visibility changed: ${document.visibilityState}`);
-            });
-
-            // Start with more detailed options
-            Logger.info('Starting receiver with options...');
+            // Các cài đặt
             const options = new cast.framework.CastReceiverOptions();
-            
             options.disableIdleScreenWhenReady = true;
             options.skipPlayersLoad = true;
             options.disableIdleTimeout = true;
-            options.inactivityTimeout = 0; // 🔥 Tắt Ambient Mode khi không có hoạt động
-            options.maxInactivity = 86400; // 🔥 Ngăn Chromecast về trạng thái mặc định quá sớm
-            
-            options.customStyle = {
-                showIdleScreen: false,
-                backgroundImageUrl: '',
-                statusTextColor: 'white',
-                backgroundColor: '#333333'
-            };
-
+            options.inactivityTimeout = 0;
             options.maxInactivity = 86400;
 
             context.start(options);
-            Logger.info('Receiver started with Ambient Mode disabled');
-
-            context.addEventListener(cast.framework.system.EventType.READY, () => {
-                Logger.info('System Ready - Ambient Mode disabled');
-                if (context.getSystemState) {
-                    const systemState = context.getSystemState();
-                    if (systemState && systemState.hideIdleScreen) {
-                        systemState.hideIdleScreen();
-                    }
-                }
-            });
 
         } catch (error) {
-            Logger.error(`Initialization error: ${error.message}`);
-            Logger.error(`Stack trace: ${error.stack}`);
+            Logger.error('Error initializing receiver: ' + error);
         }
     </script>
 </body>
