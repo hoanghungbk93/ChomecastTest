@@ -11,7 +11,8 @@ const io = socketIo(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
-    }
+    },
+    allowEIO3: true
 });
 
 // Paths to the JSON files
