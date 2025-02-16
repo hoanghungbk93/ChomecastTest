@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 # Paths to the JSON files
 VERIFIED_IPS_FILE = '/opt/verified_ips.json'
-CHROMECAST_FILE = '/opt/chromecast.json'
+CHROMECAST_FILE = '/opt/chomecast.json'
 
 # Load existing verified IPs from the file
 def load_verified_ips():
@@ -60,12 +60,20 @@ def verify_code():
     if code in chromecast_codes:
         chromecast_ip = chromecast_codes[code]
         print(f"Handshake successful - Device IP: {device_ip}, Code: {code}, Chromecast IP: {chromecast_ip}")
-        if device_ip not in verified_ips:
-            verified_ips[device_ip] = {
+        
+        # Ensure the code entry exists in verified_ips
+        if code not in verified_ips:
+            verified_ips[code] = []
+        
+        # Add the device IP to the list if not already present
+        if not any(device['ip'] == device_ip for device in verified_ips[code]):
+            verified_ips[code].append({
+                "ip": device_ip,
                 "pair_time": datetime.now().isoformat(),
                 "chromecast_id": chromecast_ip
-            }
+            })
             save_verified_ips(verified_ips)
+        
         return jsonify({
             'success': True,
             'message': 'Connected successfully'
@@ -80,14 +88,16 @@ def verify_code():
 @app.route('/disconnect', methods=['POST'])
 def disconnect():
     device_ip = request.remote_addr  # Get the client's IP address
-    if device_ip in verified_ips:
-        del verified_ips[device_ip]
-        save_verified_ips(verified_ips)
-        print(f"Device disconnected: {device_ip}")
-        return jsonify({
-            'success': True,
-            'message': 'Disconnected successfully'
-        })
+    for code, devices in verified_ips.items():
+        for device in devices:
+            if device['ip'] == device_ip:
+                devices.remove(device)
+                save_verified_ips(verified_ips)
+                print(f"Device disconnected: {device_ip}")
+                return jsonify({
+                    'success': True,
+                    'message': 'Disconnected successfully'
+                })
     return jsonify({
         'success': False,
         'message': 'Device not found'
