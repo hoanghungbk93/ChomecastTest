@@ -19,6 +19,7 @@
 <body>
     <h1>WebSocket Test</h1>
     <div id="log"></div>
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
     <script>
         const logDiv = document.getElementById('log');
 
@@ -29,23 +30,23 @@
             logDiv.scrollTop = logDiv.scrollHeight;
         }
 
-        const socket = new WebSocket('ws://10.5.0.2:8000/socket.io/?EIO=3&transport=websocket');
+        const socket = io('http://10.5.0.2:8000');
 
-        socket.onopen = function() {
+        socket.on('connect', function() {
             log('WebSocket connection opened');
-        };
+        });
 
-        socket.onmessage = function(event) {
-            log('Message received: ' + event.data);
-        };
+        socket.on('message', function(data) {
+            log('Message received: ' + data);
+        });
 
-        socket.onclose = function() {
+        socket.on('disconnect', function() {
             log('WebSocket connection closed');
-        };
+        });
 
-        socket.onerror = function(error) {
-            log('WebSocket error: ' + error.message);
-        };
+        socket.on('error', function(error) {
+            log('WebSocket error: ' + error);
+        });
     </script>
 </body>
 </html> 
