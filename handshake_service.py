@@ -147,4 +147,13 @@ def main():
     socketio.run(app, host='0.0.0.0', port=8000, debug=True)
 
 if __name__ == "__main__":
-    main() 
+    import eventlet
+    import eventlet.wsgi
+    eventlet.monkey_patch()
+
+    local_ip = get_local_ip()
+    print(f"\nHandshake server running at:")
+    print(f"http://{local_ip}:8000")
+    print("\nTest code: 1234")
+
+    eventlet.wsgi.server(eventlet.listen(("0.0.0.0", 8000)), app)
