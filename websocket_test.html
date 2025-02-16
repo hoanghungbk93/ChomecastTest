@@ -29,7 +29,7 @@
             logDiv.scrollTop = logDiv.scrollHeight;
         }
 
-        const socket = new WebSocket('ws://<server-ip>:8000/socket.io/?EIO=3&transport=websocket');
+        const socket = new WebSocket('ws://10.5.0.2:8000/socket.io/?EIO=3&transport=websocket');
 
         socket.onopen = function() {
             log('WebSocket connection opened');
