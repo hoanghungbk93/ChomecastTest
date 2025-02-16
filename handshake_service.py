@@ -7,7 +7,7 @@ import subprocess
 from datetime import datetime
 
 app = Flask(__name__)
-socketio = SocketIO(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Paths to the JSON files
 VERIFIED_IPS_FILE = '/opt/verified_ips.json'
