@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, send_file
+from flask_socketio import SocketIO, emit
 import socket
 import json
 import os
@@ -6,6 +7,7 @@ import subprocess
 from datetime import datetime
 
 app = Flask(__name__)
+socketio = SocketIO(app)
 
 # Paths to the JSON files
 VERIFIED_IPS_FILE = '/opt/verified_ips.json'
@@ -88,6 +90,12 @@ def verify_code():
             })
             print(f"Verified IP: {device_ip}, MAC Address: {mac_address}")
             save_verified_ips(verified_ips)
+            
+            # Notify connected clients about the new connection
+            socketio.emit('connection_update', {
+                'chromecast_ip': chromecast_ip,
+                'connections': len(verified_ips[chromecast_ip])
+            })
         
         return jsonify({
             'success': True,
@@ -109,6 +117,13 @@ def disconnect():
                 devices.remove(device)
                 save_verified_ips(verified_ips)
                 print(f"Device disconnected: {device_ip}")
+                
+                # Notify connected clients about the disconnection
+                socketio.emit('connection_update', {
+                    'chromecast_ip': chromecast_ip,
+                    'connections': len(verified_ips[chromecast_ip])
+                })
+                
                 return jsonify({
                     'success': True,
                     'message': 'Disconnected successfully'
@@ -124,7 +139,7 @@ def main():
     print(f"http://{local_ip}:8000")
     print("\nTest code: 1234")
     
-    app.run(host='0.0.0.0', port=8000)
+    socketio.run(app, host='0.0.0.0', port=8000)
 
 if __name__ == "__main__":
     main() 
