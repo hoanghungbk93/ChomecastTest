@@ -6,8 +6,9 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# Path to the JSON file
+# Paths to the JSON files
 VERIFIED_IPS_FILE = '/opt/verified_ips.json'
+CHROMECAST_FILE = '/opt/chomecast.json'
 
 # Load existing verified IPs from the file
 def load_verified_ips():
@@ -21,8 +22,16 @@ def save_verified_ips(ips):
     with open(VERIFIED_IPS_FILE, 'w') as file:
         json.dump(ips, file, indent=4)
 
-# Initialize verified IPs
+# Load Chromecast codes and IPs
+def load_chromecast_codes():
+    if os.path.exists(CHROMECAST_FILE):
+        with open(CHROMECAST_FILE, 'r') as file:
+            return json.load(file)
+    return {}
+
+# Initialize verified IPs and Chromecast codes
 verified_ips = load_verified_ips()
+chromecast_codes = load_chromecast_codes()
 
 def get_local_ip():
     try:
@@ -47,10 +56,15 @@ def verify_code():
     if not code:
         return jsonify({'success': False, 'message': 'No code provided'})
     
-    if code == "1234":
-        print(f"Handshake successful - Device IP: {device_ip}, Code: {code}")
+    # Check if the code exists in the Chromecast codes
+    if code in chromecast_codes:
+        chromecast_ip = chromecast_codes[code]
+        print(f"Handshake successful - Device IP: {device_ip}, Code: {code}, Chromecast IP: {chromecast_ip}")
         if device_ip not in verified_ips:
-            verified_ips[device_ip] = {"pair_time": datetime.now().isoformat()}
+            verified_ips[device_ip] = {
+                "pair_time": datetime.now().isoformat(),
+                "chromecast_id": chromecast_ip
+            }
             save_verified_ips(verified_ips)
         return jsonify({
             'success': True,
