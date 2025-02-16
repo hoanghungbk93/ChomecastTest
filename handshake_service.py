@@ -144,7 +144,7 @@ def main():
     print(f"http://{local_ip}:8000")
     print("\nTest code: 1234")
     
-    socketio.run(app, host='0.0.0.0', port=8000)
+    socketio.run(app, host='0.0.0.0', port=8000, debug=True)
 
 if __name__ == "__main__":
     main() 
