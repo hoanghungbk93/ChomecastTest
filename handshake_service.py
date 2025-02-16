@@ -62,6 +62,10 @@ def get_mac_address(ip):
 def index():
     return send_file('sender.html')
 
+@app.route('/websocket_test')
+def websocket_test():
+    return send_file('websocket_test.html')
+
 @app.route('/verify_code', methods=['POST'])
 def verify_code():
     data = request.json
