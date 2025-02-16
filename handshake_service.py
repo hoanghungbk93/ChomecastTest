@@ -7,7 +7,7 @@ import subprocess
 from datetime import datetime
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True, transports=["websocket"])
+socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True)
 
 
 # Paths to the JSON files
