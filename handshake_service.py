@@ -1,11 +1,28 @@
 from flask import Flask, request, jsonify, send_file
 import socket
-import time
+import json
+import os
+from datetime import datetime
 
 app = Flask(__name__)
 
-# Lưu trữ các phiên kết nối
-connected_devices = {}  # device_id -> connection_time
+# Path to the JSON file
+VERIFIED_IPS_FILE = '/opt/verified_ips.json'
+
+# Load existing verified IPs from the file
+def load_verified_ips():
+    if os.path.exists(VERIFIED_IPS_FILE):
+        with open(VERIFIED_IPS_FILE, 'r') as file:
+            return json.load(file)
+    return {}
+
+# Save verified IPs to the file
+def save_verified_ips(ips):
+    with open(VERIFIED_IPS_FILE, 'w') as file:
+        json.dump(ips, file, indent=4)
+
+# Initialize verified IPs
+verified_ips = load_verified_ips()
 
 def get_local_ip():
     try:
@@ -25,21 +42,22 @@ def index():
 def verify_code():
     data = request.json
     code = data.get('code')
-    device_id = request.headers.get('X-Device-ID')
+    device_ip = request.remote_addr  # Get the client's IP address
     
-    if not code or not device_id:
-        return jsonify({'success': False, 'message': 'Missing code or device ID'})
+    if not code:
+        return jsonify({'success': False, 'message': 'No code provided'})
     
-    # Hard code mã 1234 để test
     if code == "1234":
-        print(f"Handshake successful - Device: {device_id}, Code: {code}")
-        connected_devices[device_id] = time.time()
+        print(f"Handshake successful - Device IP: {device_ip}, Code: {code}")
+        if device_ip not in verified_ips:
+            verified_ips[device_ip] = {"pair_time": datetime.now().isoformat()}
+            save_verified_ips(verified_ips)
         return jsonify({
             'success': True,
             'message': 'Connected successfully'
         })
     else:
-        print(f"Invalid code received from device: {device_id}")
+        print(f"Invalid code received from IP: {device_ip}")
         return jsonify({
             'success': False,
             'message': 'Invalid code'
@@ -47,10 +65,11 @@ def verify_code():
 
 @app.route('/disconnect', methods=['POST'])
 def disconnect():
-    device_id = request.headers.get('X-Device-ID')
-    if device_id and device_id in connected_devices:
-        del connected_devices[device_id]
-        print(f"Device disconnected: {device_id}")
+    device_ip = request.remote_addr  # Get the client's IP address
+    if device_ip in verified_ips:
+        del verified_ips[device_ip]
+        save_verified_ips(verified_ips)
+        print(f"Device disconnected: {device_ip}")
         return jsonify({
             'success': True,
             'message': 'Disconnected successfully'
