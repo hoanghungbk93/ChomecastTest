@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 # Paths to the JSON files
 VERIFIED_IPS_FILE = '/opt/verified_ips.json'
-CHROMECAST_FILE = '/opt/chomecast.json'
+CHROMECAST_FILE = '/opt/chromecast.json'
 
 # Load existing verified IPs from the file
 def load_verified_ips():
