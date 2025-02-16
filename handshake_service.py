@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, send_file
 import socket
 import json
 import os
+import subprocess
 from datetime import datetime
 
 app = Flask(__name__)
@@ -44,8 +45,15 @@ def get_local_ip():
         return "127.0.0.1"
 
 def get_mac_address(ip):
-    # Placeholder function to get MAC address
-    # Implement actual logic to retrieve MAC address if needed
+    try:
+        # Run the arp command to get the MAC address
+        result = subprocess.run(['arp', '-n', ip], capture_output=True, text=True)
+        # Parse the output to find the MAC address
+        for line in result.stdout.splitlines():
+            if ip in line:
+                return line.split()[2]  # MAC address is usually the third element
+    except Exception as e:
+        print(f"Error retrieving MAC address for {ip}: {e}")
     return "00:00:00:00:00:00"
 
 @app.route('/')
