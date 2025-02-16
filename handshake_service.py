@@ -43,6 +43,11 @@ def get_local_ip():
     except Exception:
         return "127.0.0.1"
 
+def get_mac_address(ip):
+    # Placeholder function to get MAC address
+    # Implement actual logic to retrieve MAC address if needed
+    return "00:00:00:00:00:00"
+
 @app.route('/')
 def index():
     return send_file('sender.html')
@@ -61,16 +66,17 @@ def verify_code():
         chromecast_ip = chromecast_codes[code]
         print(f"Handshake successful - Device IP: {device_ip}, Code: {code}, Chromecast IP: {chromecast_ip}")
         
-        # Ensure the code entry exists in verified_ips
-        if code not in verified_ips:
-            verified_ips[code] = []
+        # Ensure the chromecast_ip entry exists in verified_ips
+        if chromecast_ip not in verified_ips:
+            verified_ips[chromecast_ip] = []
         
-        # Add the device IP to the list if not already present
-        if not any(device['ip'] == device_ip for device in verified_ips[code]):
-            verified_ips[code].append({
+        # Check if the device is already verified
+        if not any(device['ip'] == device_ip for device in verified_ips[chromecast_ip]):
+            mac_address = get_mac_address(device_ip)
+            verified_ips[chromecast_ip].append({
                 "ip": device_ip,
                 "pair_time": datetime.now().isoformat(),
-                "chromecast_id": chromecast_ip
+                "mac_address": mac_address
             })
             save_verified_ips(verified_ips)
         
@@ -88,7 +94,7 @@ def verify_code():
 @app.route('/disconnect', methods=['POST'])
 def disconnect():
     device_ip = request.remote_addr  # Get the client's IP address
-    for code, devices in verified_ips.items():
+    for chromecast_ip, devices in verified_ips.items():
         for device in devices:
             if device['ip'] == device_ip:
                 devices.remove(device)
