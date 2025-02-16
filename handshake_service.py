@@ -5,9 +5,20 @@ import json
 import os
 import subprocess
 from datetime import datetime
+import eventlet
+eventlet.monkey_patch()
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="eventlet")
+
+
+@socketio.on("connect")
+def handle_connect():
+    print(f"✅ Client {request.sid} connected!")
+
+@socketio.on("disconnect")
+def handle_disconnect():
+    print(f"❌ Client {request.sid} disconnected!")
 
 # Paths to the JSON files
 VERIFIED_IPS_FILE = '/opt/verified_ips.json'
