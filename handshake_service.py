@@ -86,6 +86,7 @@ def verify_code():
                 "pair_time": datetime.now().isoformat(),
                 "mac_address": mac_address
             })
+            print(f"Verified IP: {device_ip}, MAC Address: {mac_address}")
             save_verified_ips(verified_ips)
         
         return jsonify({
